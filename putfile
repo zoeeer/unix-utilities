@@ -1,0 +1,47 @@
+Usage="Usage: ${0##*/} -d dest_dir filename(s)"
+
+if [ $# -lt 3 ] || [ $1 != "-d" ] ; then
+	echo "parameter error"
+	echo $Usage
+	exit 1
+fi
+
+while getopts "d:" opt
+do
+	case $opt in
+	d)
+		if [ $OPTARG ] ; then
+			dest=$OPTARG
+			if [ ! -d $dest ] ; then
+				echo "invalid dest dir: $dest"
+				echo $Usage
+				exit 3
+			fi
+		else
+			echo "parameter error - dest dir not specified"
+			echo $Usage
+			exit 1
+		fi
+		;;
+	?)
+		echo "unknown argument"
+		echo $Usage
+		exit 2
+		;;
+	esac
+done
+
+#echo $dest
+shift $((OPTIND-1))
+#echo "file(s) to copy: $@"
+
+#set -x
+
+for file in $@
+do
+	dir=${file%/*}  # $dir is not a dir if $file does not contain '/'
+#	echo "[ -d $dir ] && ( [ -e $dest/$dir ] || mkdir -p $dest/$dir )"
+	[ -d $dir ] && ( [ -e $dest/$dir ] || mkdir -p $dest/$dir )
+#	echo cp $file $dest/$file
+	cp $file $dest/$file
+done
