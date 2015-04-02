@@ -1,4 +1,17 @@
+#!/usr/bin/bash
+
+#######################################################################
+# putfile
+#     massive copy files to a destination directory, while reserving
+# orginal directory structure.
+#
+# history:
+# Mar 22 2015   Created
+# Apr 01 2015   Add -f option, accepts a list file containing all files
+#               to be processed
+#######################################################################
 Usage="Usage: ${0##*/} -d dest_dir filename(s)"
+Usage="Usage: ${0##*/} -d dest_dir -f list_file"
 
 if [ $# -lt 3 ] || [ $1 != "-d" ] ; then
 	echo "parameter error"
@@ -6,7 +19,11 @@ if [ $# -lt 3 ] || [ $1 != "-d" ] ; then
 	exit 1
 fi
 
-while getopts "d:" opt
+dest=
+file=
+list=
+
+while getopts "d:f:" opt
 do
 	case $opt in
 	d)
@@ -23,21 +40,47 @@ do
 			exit 1
 		fi
 		;;
+	f)
+		if [ $OPTARG ] ; then
+			file=$OPTARG
+			if [ ! -f $file ] ; then
+				echo "invalid list file: $file"
+				echo $Usage
+				exit 4
+			fi
+		else
+			echo "parameter error - list file not specified"
+			echo $Usage
+			exit 1
+		fi
+		;;
 	?)
-		echo "unknown argument"
+		echo "unknown option: $opt"
 		echo $Usage
 		exit 2
 		;;
 	esac
 done
 
-#echo $dest
 shift $((OPTIND-1))
-#echo "file(s) to copy: $@"
+if [ $file ] && [ $# -gt 0 ]
+then
+	echo "parameter error"
+	echo $Usage
+	exit 1
+fi
+
+if [ $file ]
+then
+	list=`cat $file`
+else
+	list=$@
+fi
+#echo "file(s) to copy: $list"
 
 #set -x
 
-for file in $@
+for file in $list
 do
 	dir=${file%/*}  # $dir is not a dir if $file does not contain '/'
 #	echo "[ -d $dir ] && ( [ -e $dest/$dir ] || mkdir -p $dest/$dir )"
