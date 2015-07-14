@@ -1,0 +1,172 @@
+#!/usr/bin/ksh
+
+#######################################################################
+# jbuild-task
+#     Run this tool on the task compile server.
+#     Build task package from src, for both new and old SOAP interface.
+#
+# history: Jul 09 2015 Created
+#######################################################################
+
+_cmd=${0##*/}
+
+usage() {
+	echo "Usage:"
+	echo "        $_cmd [-f feat_id] [-i info] [-v soap_ver] [-d work_dir]"
+	echo "        $_cmd -h"
+	echo "Build task packages for both new and old SOAP interface."
+	echo
+	echo "Options:"
+	echo "  -f feat_id     feature id."
+	echo "  -i info        distro info that will be appended to package name."
+	echo "  -v soap_ver    SOAP version, 'old' or 'new'." 
+	echo "                 if not specified, both package will be built."
+	echo "  -d work_dir    work dir which contains 'src' subdirectory."
+	echo "  -h             show this help."
+	echo
+	echo "Structure of the work directory should be:"
+	echo "\$work_dir/src/      - required"
+	echo "\$work_dir/src/xml/"
+	echo "\$work_dir/src/twl/"
+	echo "\$work_dir/src/cfg/"
+	echo "\$work_dir/src/cwl/"
+	echo
+	echo "Example:"
+	echo "        $_cmd"
+	echo "            will generate NewSOAP.tar and OldSOAP.tar"
+	echo "        $_cmd -f75979 -i28G -v new"
+	echo "            will generate 75979_NewSOAP_28G.tar"
+}
+
+# Default configurations
+wd=$PWD
+Build_For_New_SOAP=Y
+Build_For_Old_SOAP=Y
+mf=/shome/sms/rangt/bin/Makefile_for_eSM_Task
+typeset -l ver=new
+
+# Get options
+while getopts "hf:i:v:d:" opt
+do
+	case $opt in
+	h)
+		usage;
+		exit 0
+		;;
+	f)
+		if [ $OPTARG ] ; then
+			feat=${OPTARG}_
+		else
+			echo "$_cmd: parameter error - feature id invalid"
+			usage
+			exit 1
+		fi
+		;;
+	i)
+		if [ $OPTARG ] ; then
+			distro_info=_$OPTARG
+		else
+			echo "$_cmd: parameter error - distro info is empty"
+			usage;
+			exit 1
+		fi
+		;;
+	v)
+		if [ $OPTARG ] ; then
+			ver=$OPTARG
+			if [ $ver = "new" ] || [ $ver = "1.6" ] ; then
+				Build_For_New_SOAP=Y
+				Build_For_Old_SOAP=N
+			elif [ $ver = "old" ] || [ $ver = "1.4" ] ; then
+				Build_For_New_SOAP=N
+				Build_For_Old_SOAP=Y
+			else
+				echo "$_cmd: parameter error - SOAP version $ver not recognized"
+				usage;
+				exit 1
+			fi
+		fi
+		;;
+	d)
+		if [ $OPTARG ] ; then
+			wd=$OPTARG
+		else
+			echo "$_cmd: parameter error - dest dir is empty"
+			usage;
+			exit 1
+		fi
+		;;
+	*)
+		usage;
+		exit 2
+		;;
+	esac
+done
+
+#shift $((OPTIND-1))
+
+if [ ! -d $wd ] || [ ! -d $wd/src ] ; then
+	echo "$_cmd: invalid working dir: $wd"
+	usage;
+	exit 3
+fi
+
+echo work_dir=$wd
+echo feature=$feat
+echo SOAP_version is: $ver
+echo Makefile=$mf
+
+warn_before_overwrite() {
+	if [ -d $1 ] || [ -f $1 ] ; then
+		echo "$1 already exists! overwrite it? (y/n)"
+		read ans
+		[ $ans != "y" ] && [ $ans != "Y" ] && echo exit && exit 4
+	fi
+}
+
+build_package() {
+	warn_before_overwrite $package
+	warn_before_overwrite $package.tar
+	mkdir $package
+	rsync -am --exclude='xml' --exclude='*.java' src $package
+	rm `find src -name *.class`
+	mv $package/src $package/Current
+	cp src/xml/*.xml $package/Current
+	tar -cf $package.tar $package
+	rm -r $package
+	echo "Build $package.tar done!"
+}
+
+#set -x
+old_wd=$PWD
+cd $wd
+
+# Build for new SOAP
+if [ $Build_For_New_SOAP = "Y" ] ; then
+	echo "Compling for new SOAP..."
+	make -f $mf new
+	if [ $? -ne 0 ] ; then
+		echo "$_cmd: Compling for new SOAP failed!"
+		exit 5
+	fi
+	echo "Compling for new SOAP successful!"
+	package=${feat}NewSOAP$distro_info
+	echo "Building package for new SOAP"
+	build_package
+fi
+
+# Build for old SOAP
+if [ $Build_For_Old_SOAP = "Y" ] ; then
+	echo "Compling for old SOAP..."
+	make -f $mf old
+	if [ $? -ne 0 ] ; then
+		echo "$_cmd: Compling for old SOAP failed!"
+		exit 5
+	fi
+	echo "Compling for old SOAP successful!"
+	package=${feat}OldSOAP$distro_info
+	echo "Building package for old SOAP"
+	build_package;
+fi
+
+cd $old_wd

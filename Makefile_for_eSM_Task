@@ -1,0 +1,53 @@
+########################################################
+#
+#  general Makefile for eSM Task  
+#
+#  invoke with:
+#            make new       (make for new SOAP)
+#            make old       (make for old SOAP)
+#            make           (same as make new)
+#            make clean     (clean up .class files)
+#
+#  for use of jbuild-task, place this file at the following location:
+#            sms@135.252.167.92:/shome/sms/rangt/bin/Makefile_for_eSM_Task
+#
+########################################################
+
+SRC=`find . -name *.java`
+OBJ=`find . -name *.class`
+
+# Evironment for old SOAP
+JAVA_HOME_old=/opt/java1.4
+XMLBEANS_LIB=$(SMSAPP)/classes/xmlbeans
+XMLBEANS_CP=$(XMLBEANS_LIB)/jsr173_1.0_api.jar:$(XMLBEANS_LIB)/xbean.jar:$(XMLBEANS_LIB)/xmlpublic.jar:$(XMLBEANS_LIB)/resolver.jar:$(XMLBEANS_LIB)/xbean_xpath.jar
+AXIS_CP=$(SMSAPP)/esmwebsvc/axis/lib/axis.jar
+CLASSPATH_old=$(SMSAPP)/esmwebsvc/0/tomcat/common/lib/servlet.jar:$(SMSAPP)/classes/com/alu/esm/ws:$(SMSAPP)/classes/com/lucent/esm/ws:$(SMSAPP)/classes/oracle/jdbc/classes12.zip:$(XMLBEANS_CP):$(SMSAPP)/classes/ws_schema.jar:$(SMSAPP)/classes:$(AXIS_CP):$(SMSTMP)/TaskMap/Current/twl/util
+
+# Evironment for new SOAP
+JAVA_HOME_new=/opt/java6
+CLASSPATH_new=.:$(SMSAPP)/wsagent/webapp/WEB-INF/classes:$(SMSAPP)/wsagent/app/lib/servlet-api-2.5.jar:$(SMSAPP)/wsagent/webapp/WEB-INF/lib/jsr173_api.jar:$(SMSAPP)/wsagent/webapp/WEB-INF/lib/xbean.jar:$(SMSAPP)/wsagent/webapp/WEB-INF/lib/xmlpublic.jar:$(SMSAPP)/wsagent/webapp/WEB-INF/lib/resolver.jar:$(SMSAPP)/wsagent/webapp/WEB-INF/lib/xbean_xpath.jar:$(SMSAPP)/wsagent/webapp/WEB-INF/lib/ws_schema.jar
+
+
+# make new
+new:
+	$(JAVA_HOME_new)/bin/javac -cp $(CLASSPATH_new) $(SRC)
+	chmod a+r $(OBJ)
+
+# make old
+old:
+	$(JAVA_HOME_old)/bin/javac -classpath $(CLASSPATH_old) $(SRC)
+	chmod a+r $(OBJ)
+
+test:
+	echo $(SRC)
+	echo $(SRC:.java=.class)
+	echo $(SMSAPP)
+	echo $(XMLBEANS_LIB)
+	echo $(XMLBEANS_CP)
+
+
+clean:
+	rm $(OBJ)
+
+# make for new SOAP is the default action
+default: new
