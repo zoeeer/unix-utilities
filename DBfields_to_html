@@ -26,8 +26,8 @@ csvdata = minidom.parse(csvfile)
 fields = csvdata.getElementsByTagName('ViewAttr')
 viewNameMap = dict()
 for field in fields:
-	eSM_name = field.attributes['Link-SvcAttr'].value
-	view_name = field.attributes['vatName'].value
+	eSM_name = field.getAttribute('Link-SvcAttr')
+	view_name = field.getAttribute('vatName')
 	viewNameMap[eSM_name] = view_name
 
 ### functions for parsing DATA_ITEMs ###
@@ -44,9 +44,6 @@ for field in fields:
 		...
 	}
 """
-def get_attr(element, attr_name):
-	return element.attributes[attr_name].value
-
 def get_type_desc(xml_item, type):
 	if type == 'counter':
 		type_desc = 'Counter'
@@ -55,8 +52,8 @@ def get_type_desc(xml_item, type):
 		if len(range_constraint) > 1:
 			print >> sys.stderr, type, name
 		range_constraint = range_constraint[0]
-		maxValue = get_attr(range_constraint, 'maxValue')
-		minValue = get_attr(range_constraint, 'minValue')
+		maxValue = range_constraint.getAttribute('maxValue')
+		minValue = range_constraint.getAttribute('minValue')
 		type_desc = 'Counter(' + minValue + ',' + maxValue + ')'
 	elif type == 'digit_string':
 		length_constraint = item.getElementsByTagName('LengthConstraint')
@@ -65,8 +62,8 @@ def get_type_desc(xml_item, type):
 			type_desc = 'digital string'
 		else:
 			length_constraint = length_constraint[0]
-			maxLen = get_attr(length_constraint, 'maxLength')
-			minLen = get_attr(length_constraint, 'minLength')
+			maxLen = length_constraint.getAttribute('maxLength')
+			minLen = length_constraint.getAttribute('minLength')
 			type_desc = minLen + '-' + maxLen + ' digital string'
 	elif type == 'string':
 		length_constraint = item.getElementsByTagName('LengthConstraint')
@@ -75,14 +72,14 @@ def get_type_desc(xml_item, type):
 			type_desc = 'string'
 		else:
 			length_constraint = length_constraint[0]
-			maxLen = get_attr(length_constraint, 'maxLength')
-			minLen = get_attr(length_constraint, 'minLength')
+			maxLen = length_constraint.getAttribute('maxLength')
+			minLen = length_constraint.getAttribute('minLength')
 			type_desc = minLen + '-' + maxLen + ' string'
 	elif type == 'enum' or type == 'enum symbolic':
 		enum_values = item.getElementsByTagName('EnumValue')
 		type_desc = 'Enumeration:'
 		for enumValue in enum_values:
-			type_desc += '\n' + get_attr(enumValue, 'user_mnemonic')
+			type_desc += '\n' + enumValue.getAttribute('user_mnemonic')
 	elif type == 'flag':
 		type_desc = 'Flag(Y/N)'
 	elif type == 'hex_value':
@@ -94,19 +91,19 @@ def get_type_desc(xml_item, type):
 	return type_desc
 
 def data_item(xml_item):
-	name = get_attr(xml_item, 'NAME')
+	name = xml_item.getAttribute('NAME')
 	view_name = viewNameMap[name]
-	type = get_attr(xml_item, 'TYPE')
+	type = xml_item.getAttribute('TYPE')
 	type_desc = get_type_desc(xml_item, type)
 
-	required = item.attributes.get('IS_REQUIRED')
-	if required and required.value == 'true':
+	required = item.getAttribute('IS_REQUIRED')
+	if required == 'true':
 		required = "Required"
 	else:
 		required = "Optional"
 
-	dist_attr = item.attributes.get('DISTRIBUTION')
-	if dist_attr and dist_attr.value == "dist_init_only":
+	dist_attr = item.getAttribute('DISTRIBUTION')
+	if dist_attr == "dist_init_only":
 		allow_by_esm = 'n'
 	else:	# allow update
 		allow_by_esm = 'y'
@@ -123,8 +120,11 @@ xmldata = minidom.parse(xmlfile)
 xml_item_list = xmldata.getElementsByTagName('DATA_ITEM')
 itemlist = []
 for item in xml_item_list:
-	name = get_attr(item, 'NAME')
+	name = item.getAttribute('NAME')
 	if filter and name not in filter:
+		continue
+	# skip mashed keys
+	if item.getAttribute('AGGRTYPE') == 'mashedkey':
 		continue
 	itemlist.append(data_item(item))
 
