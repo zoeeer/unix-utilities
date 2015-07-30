@@ -50,16 +50,14 @@ while getopts "hf:i:v:d:" opt
 do
 	case $opt in
 	h)
-		usage;
-		exit 0
+		usage; exit 0
 		;;
 	f)
 		if [ $OPTARG ] ; then
 			feat=${OPTARG}_
 		else
 			echo "$_cmd: parameter error - feature id invalid"
-			usage
-			exit 1
+			usage; exit 1
 		fi
 		;;
 	i)
@@ -67,8 +65,7 @@ do
 			distro_info=_$OPTARG
 		else
 			echo "$_cmd: parameter error - distro info is empty"
-			usage;
-			exit 1
+			usage; exit 1
 		fi
 		;;
 	v)
@@ -82,8 +79,7 @@ do
 				Build_For_Old_SOAP=Y
 			else
 				echo "$_cmd: parameter error - SOAP version $ver not recognized"
-				usage;
-				exit 1
+				usage; exit 1
 			fi
 		fi
 		;;
@@ -92,13 +88,11 @@ do
 			wd=$OPTARG
 		else
 			echo "$_cmd: parameter error - dest dir is empty"
-			usage;
-			exit 1
+			usage; exit 1
 		fi
 		;;
 	*)
-		usage;
-		exit 2
+		usage; exit 2
 		;;
 	esac
 done
@@ -107,8 +101,7 @@ done
 
 if [ ! -d $wd ] || [ ! -d $wd/src ] ; then
 	echo "$_cmd: invalid working dir: $wd"
-	usage;
-	exit 3
+	usage; exit 3
 fi
 
 echo work_dir=$wd
@@ -121,6 +114,7 @@ warn_before_overwrite() {
 		echo "$1 already exists! overwrite it? (y/n)"
 		read ans
 		[ $ans != "y" ] && [ $ans != "Y" ] && echo exit && exit 4
+		rm -r $1
 	fi
 }
 
@@ -131,8 +125,21 @@ build_package() {
 	rsync -am --exclude='xml' --exclude='*.java' src $package
 	rm `find src -name *.class`
 	mv $package/src $package/Current
-	cp src/xml/*.xml $package/Current
-	tar -cf $package.tar $package
+	cp -p src/xml/*.xml $package/Current
+	# deal with script dir
+	[ -d $package/Current/script ] && mv $package/Current/script $package
+	# deal with config dir
+	[ -d $package/Current/config ] && mv $package/Current/config $package
+	# deal with CustomMacro mapping files
+	macros=`find $package/Current -name CustomMacro_*.xml`
+	if [ $macros ] ; then
+		mkdir $package/CustomMacro
+		mv $macros $package/CustomMacro
+	fi
+	find $package | xargs chmod a+r
+	find $package -type d | xargs chmod a+x
+	tar -cpf $package.tar $package
+	chmod a+r $package.tar
 	rm -r $package
 	echo "Build $package.tar done!"
 }
@@ -146,13 +153,12 @@ if [ $Build_For_New_SOAP = "Y" ] ; then
 	echo "Compling for new SOAP..."
 	make -f $mf new
 	if [ $? -ne 0 ] ; then
-		echo "$_cmd: Compling for new SOAP failed!"
-		exit 5
+		echo "$_cmd: Compling for new SOAP failed!" && exit 5
 	fi
 	echo "Compling for new SOAP successful!"
 	package=${feat}NewSOAP$distro_info
 	echo "Building package for new SOAP"
-	build_package
+	build_package;
 fi
 
 # Build for old SOAP
@@ -160,8 +166,7 @@ if [ $Build_For_Old_SOAP = "Y" ] ; then
 	echo "Compling for old SOAP..."
 	make -f $mf old
 	if [ $? -ne 0 ] ; then
-		echo "$_cmd: Compling for old SOAP failed!"
-		exit 5
+		echo "$_cmd: Compling for old SOAP failed!" && exit 5
 	fi
 	echo "Compling for old SOAP successful!"
 	package=${feat}OldSOAP$distro_info
