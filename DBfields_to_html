@@ -7,7 +7,6 @@ from xml.dom import minidom
 dbname = sys.argv[1]
 if len(sys.argv) == 3:
 	filterfile = sys.argv[2]
-#print dbname
 xmlfile = dbname + '.xml'
 csvfile = dbname + '-csv.xml'
 
@@ -16,8 +15,6 @@ try:
 	f = open(filterfile)
 	filter = set(f.read().splitlines())
 	f.close()
-	#print 'filter: '
-	#print filter
 except NameError:
 	filter = None
 
@@ -37,9 +34,8 @@ for field in fields:
 		esm_name : {
 			'view_name' : view_name,
 			'type' : type,
-			'type_description' : type_desc,
+			'type_desc' : type_desc,
 			'required' : 'Required|Optional',
-			'allow_by_esm' : 'y|n',
 		},
 		...
 	}
@@ -102,18 +98,11 @@ def data_item(xml_item):
 	else:
 		required = "Optional"
 
-	dist_attr = item.getAttribute('DISTRIBUTION')
-	if dist_attr == "dist_init_only":
-		allow_by_esm = 'n'
-	else:	# allow update
-		allow_by_esm = 'y'
-
 	return {
 		'view_name' : view_name,
 		'type' : type,
-		'type_description' : type_desc,
+		'type_desc' : type_desc,
 		'required' : required,
-		'allow_by_esm' : allow_by_esm,
 	}
 
 xmldata = minidom.parse(xmlfile)
@@ -146,5 +135,5 @@ def list_to_html_table(list, header):
 	return '<table>\n' + tb + '</table>\n'
 
 # Write to html table
-tbheader = ['view_name', 'type_description', 'required']
+tbheader = ['view_name', 'type_desc', 'required']
 print list_to_html_table(itemlist, tbheader)
