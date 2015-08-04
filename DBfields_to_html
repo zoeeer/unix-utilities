@@ -4,6 +4,17 @@ import os
 import sys
 from xml.dom import minidom
 
+_cmd = os.path.basename(sys.argv[0])
+usage = 'Usage:\n\t' + _cmd + ' dbname [filter_file]'
+
+if len(sys.argv) == 1:
+	print usage
+	sys.exit(1)
+if len(sys.argv) > 3:
+	print _cmd + ': parameter error'
+	print usage
+	sys.exit(2)
+
 dbname = sys.argv[1]
 if len(sys.argv) == 3:
 	filterfile = sys.argv[2]
@@ -42,35 +53,50 @@ for field in fields:
 """
 def get_type_desc(xml_item, type):
 	if type == 'counter':
-		type_desc = 'Counter'
+		maxLen = item.getAttribute('MAX_LENGTH')
+		if int(maxLen) > 16:
+			type_desc = 'Long counter'
+		else:
+			type_desc = 'Counter'
 	elif type == 'counter range':
 		range_constraint = item.getElementsByTagName('RangeConstraint')
-		if len(range_constraint) > 1:
-			print >> sys.stderr, type, name
 		range_constraint = range_constraint[0]
 		maxValue = range_constraint.getAttribute('maxValue')
 		minValue = range_constraint.getAttribute('minValue')
 		type_desc = 'Counter(' + minValue + ',' + maxValue + ')'
-	elif type == 'digit_string':
+	elif type == 'string' or type == 'digit_string':
+		enum_values = item.getElementsByTagName('EnumValue')
+		if len(enum_values) > 0:	# This is an enumeration string
+			print >> sys.stderr, name + ': [' + type + '] has enum constraint'
+			type_desc = 'Enumeration:'
+			for enumValue in enum_values:
+				type_desc += '\n' + enumValue.getAttribute('user_mnemonic')
+			return type_desc
 		length_constraint = item.getElementsByTagName('LengthConstraint')
-		if len(length_constraint) != 1:
-			print >> sys.stderr, type, name
-			type_desc = 'digital string'
+		if len(length_constraint) == 0:
+			maxLen = item.getAttribute('MAX_LENGTH')
+			minLen = item.getAttribute('MIN_LENGTH')
 		else:
 			length_constraint = length_constraint[0]
 			maxLen = length_constraint.getAttribute('maxLength')
 			minLen = length_constraint.getAttribute('minLength')
-			type_desc = minLen + '-' + maxLen + ' digital string'
-	elif type == 'string':
-		length_constraint = item.getElementsByTagName('LengthConstraint')
-		if len(length_constraint) != 1:
-			print >> sys.stderr, type, name
-			type_desc = 'string'
+		date_constraint = item.getElementsByTagName('DateTimeConstraint')
+		if len(date_constraint) > 0:
+			date_constraint = date_constraint[0]
+			type_desc = maxLen + ' digit string of format ' + date_constraint.getAttribute('format')
 		else:
-			length_constraint = length_constraint[0]
-			maxLen = length_constraint.getAttribute('maxLength')
-			minLen = length_constraint.getAttribute('minLength')
-			type_desc = minLen + '-' + maxLen + ' string'
+			if 'DATE' in name.upper():
+				print >> sys.stderr, name + ': [' + type + '] is likely to be a DATE type!'
+			if type == 'digit_string':
+				type_desc = 'digital string'
+			else:
+				type_desc = 'string'
+			if minLen == '0' or minLen == '':
+				minLen = '1'
+			if minLen == maxLen:
+				type_desc = maxLen + type_desc
+			else:
+				type_desc = minLen + '-' + maxLen + type_desc
 	elif type == 'enum' or type == 'enum symbolic':
 		enum_values = item.getElementsByTagName('EnumValue')
 		type_desc = 'Enumeration:'
@@ -83,6 +109,9 @@ def get_type_desc(xml_item, type):
 	else:
 		type_desc = type
 		print >> sys.stderr, 'unknown type: ' + type
+
+	#if len(item.getElementsByTagName('RegExpConstraint')) > 0:
+	#	print >> sys.stderr, name + ': [' + type + '] has RegExpConstraint'
 
 	return type_desc
 
