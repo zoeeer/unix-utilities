@@ -53,43 +53,26 @@ do
 		usage; exit 0
 		;;
 	f)
-		if [ $OPTARG ] ; then
-			feat=${OPTARG}_
-		else
-			echo "$_cmd: parameter error - feature id invalid"
-			usage; exit 1
-		fi
+		feat=${OPTARG}_
 		;;
 	i)
-		if [ $OPTARG ] ; then
-			distro_info=_$OPTARG
-		else
-			echo "$_cmd: parameter error - distro info is empty"
-			usage; exit 1
-		fi
+		distro_info=_$OPTARG
 		;;
 	v)
-		if [ $OPTARG ] ; then
-			ver=$OPTARG
-			if [ $ver = "new" ] || [ $ver = "1.6" ] ; then
-				Build_For_New_SOAP=Y
-				Build_For_Old_SOAP=N
-			elif [ $ver = "old" ] || [ $ver = "1.4" ] ; then
-				Build_For_New_SOAP=N
-				Build_For_Old_SOAP=Y
-			else
-				echo "$_cmd: parameter error - SOAP version $ver not recognized"
-				usage; exit 1
-			fi
+		ver=$OPTARG
+		if [ $ver = "new" ] || [ $ver = "1.6" ] ; then
+			Build_For_New_SOAP=Y
+			Build_For_Old_SOAP=N
+		elif [ $ver = "old" ] || [ $ver = "1.4" ] ; then
+			Build_For_New_SOAP=N
+			Build_For_Old_SOAP=Y
+		else
+			echo "$_cmd: parameter error - SOAP version $ver not recognized"
+			usage; exit 1
 		fi
 		;;
 	d)
-		if [ $OPTARG ] ; then
-			wd=$OPTARG
-		else
-			echo "$_cmd: parameter error - dest dir is empty"
-			usage; exit 1
-		fi
+		wd=$OPTARG
 		;;
 	*)
 		usage; exit 2
