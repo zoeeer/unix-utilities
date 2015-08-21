@@ -13,6 +13,7 @@ _cmd=${0##*/}
 usage() {
 	echo "Usage:"
 	echo "        $_cmd [-f feat_id] [-i info] [-v soap_ver] [-d work_dir]"
+	echo "        $_cmd -k [options]"
 	echo "        $_cmd -h"
 	echo "Build task packages for both new and old SOAP interface."
 	echo
@@ -46,7 +47,7 @@ mf=/shome/sms/rangt/bin/Makefile_for_eSM_Task
 typeset -l ver=new
 
 # Get options
-while getopts "hf:i:v:d:" opt
+while getopts "hf:i:v:d:k" opt
 do
 	case $opt in
 	h)
@@ -68,14 +69,17 @@ do
 			Build_For_Old_SOAP=Y
 		else
 			echo "$_cmd: parameter error - SOAP version $ver not recognized"
-			usage; exit 1
+			usage; exit 2
 		fi
 		;;
 	d)
 		wd=$OPTARG
 		;;
+	k)
+		NoTar=y
+		;;
 	*)
-		usage; exit 2
+		usage; exit 1
 		;;
 	esac
 done
@@ -105,10 +109,10 @@ build_package() {
 	warn_before_overwrite $package
 	warn_before_overwrite $package.tar
 	mkdir $package
-	rsync -am --exclude='xml' --exclude='*.java' src $package
-	rm `find src -name *.class`
-	mv $package/src $package/Current
-	cp -p src/xml/*.xml $package/Current
+	rsync -am --exclude='xml' --exclude='*.java' $SRCDIR $package
+	rm `find $SRCDIR -name *.class`
+	mv $package/$SRCDIR $package/Current
+	cp -p $SRCDIR/xml/*.xml $package/Current
 	# deal with script dir
 	[ -d $package/Current/script ] && mv $package/Current/script $package
 	# deal with config dir
@@ -121,20 +125,25 @@ build_package() {
 	fi
 	find $package | xargs chmod a+r
 	find $package -type d | xargs chmod a+x
-	tar -cpf $package.tar $package
-	chmod a+r $package.tar
-	rm -r $package
-	echo "Build $package.tar done!"
+	if [ $NoTar ] ; then
+		echo "Done! No .tar file generated. Please check the dir $package"
+	else
+		tar -cpf $package.tar $package
+		chmod a+r $package.tar
+		rm -r $package
+		echo "Build $package.tar done!"
+	fi
 }
 
 #set -x
 old_wd=$PWD
 cd $wd
+SRCDIR=${SRCDIR:-src}
 
 # Build for new SOAP
 if [ $Build_For_New_SOAP = "Y" ] ; then
 	echo "Compling for new SOAP..."
-	make -f $mf new
+	(cd $SRCDIR; make -f $mf new)
 	if [ $? -ne 0 ] ; then
 		echo "$_cmd: Compling for new SOAP failed!" && exit 5
 	fi
@@ -147,7 +156,7 @@ fi
 # Build for old SOAP
 if [ $Build_For_Old_SOAP = "Y" ] ; then
 	echo "Compling for old SOAP..."
-	make -f $mf old
+	(cd $SRCDIR; make -f $mf old)
 	if [ $? -ne 0 ] ; then
 		echo "$_cmd: Compling for old SOAP failed!" && exit 5
 	fi
