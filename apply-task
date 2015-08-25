@@ -1,0 +1,98 @@
+#!/usr/bin/bash
+
+#######################################################################
+# apply-task
+#     Run this tool on the CCMS server.
+#     Apply task build (xxx.tar) to the destination eSM server, including
+#         xml, twl, cfg, script files
+#
+# history: Jul 08 2015 Created
+#          Aug 05 2015 use expect to pass ssh password
+#######################################################################
+usage() {
+	echo "Usage:"
+	echo "   or   ${0##*/} -a ip_addr -f tar_file [-v soap_ver]"
+	echo "Apply task mapping files, twl classes, cfg files to the destination
+eSM server. These files will be put under the 'Current' path accordingly."
+	echo
+	echo "Options:"
+	echo "  -a ip_addr     ip address of your destination eSM server."
+	echo "  -f tar_file    the task package"
+	echo "  -v soap_ver    SOAP version, 'old' or 'new'. default to 'new'." 
+	echo
+	echo "Example:"
+	echo "        ${0##*/} -a 135.242.106.123 -f sometask"
+	echo "        ${0##*/} -a 135.242.106.123 -v old -f sometask.tar"
+}
+
+ver=new
+
+while getopts "a:v:f:" opt
+do
+	case $opt in
+	a)
+		ip_addr=$OPTARG
+		;;
+	f)
+		file=$OPTARG
+		file=${file/.tar}
+		if [ ! -f $file.tar ] ; then
+			echo "invalid tar file: $file.tar"
+			usage && exit 3
+		fi
+		;;
+	v)
+		ver=$OPTARG
+		if [ $ver == "1.4" ] || [ $ver == "old" ] ; then
+			ver=old
+		elif [ $ver == "1.6" ] || [ $ver == "new" ] ; then
+			ver=new
+		else
+			echo "invalid version tag: $ver"
+			usage && exit 4
+		fi
+		;;
+	*)
+		usage && exit 2
+		;;
+	esac
+done
+
+shift $((OPTIND-1))
+
+if [ ! $file ]
+then
+	echo "parameter error: task package not specified"
+	usage && exit 1
+fi
+
+if [ $ver == "old" ] ; then
+	dest_dir=/sms/smstmp/TaskMap
+else
+	dest_dir=/sms/smstmp/TaskMap/wsagent
+fi
+
+login=sms
+passwd=nsms123
+
+#   function: ssh_exec   #
+#   use 'expect' to execute scp or ssh on remote host   #
+ssh_exec() {
+	expect <<ENDOFHERE
+spawn $*
+expect "*password*"
+send "$passwd\n"
+expect eof
+ENDOFHERE
+}
+
+remote_cmd="\"\
+cd $dest_dir;\
+tar -xpf $file.tar;\
+cp -r $file/Current . ;\
+cp -r $file/config /sms/smstmp/TaskMap;\
+rm -r $file;\
+\""
+
+ssh_exec scp $file.tar $login@$ip_addr:$dest_dir
+ssh_exec ssh $login@$ip_addr $remote_cmd
