@@ -12,8 +12,8 @@ _cmd=${0##*/}
 
 usage() {
 	echo "Usage:"
-	echo "        $_cmd [-f feat_id] [-i info] [-v soap_ver] [-d work_dir]"
-	echo "        $_cmd -k [options]"
+	echo "        $_cmd [-f feat_id] [-i info] [-v soap_ver] [-s src_dir]"
+	echo "        $_cmd -k [other options]"
 	echo "        $_cmd -h"
 	echo "Build task packages for both new and old SOAP interface."
 	echo
@@ -22,32 +22,39 @@ usage() {
 	echo "  -i info        distro info that will be appended to package name."
 	echo "  -v soap_ver    SOAP version, 'old' or 'new'." 
 	echo "                 if not specified, both package will be built."
-	echo "  -d work_dir    work dir which contains 'src' subdirectory."
+	echo "  -s src_dir     source dir, default to 'src' under current directory"
+	echo "  -k             keep the output directories instead of creating tarballs."
 	echo "  -h             show this help."
 	echo
 	echo "Structure of the work directory should be:"
-	echo "\$work_dir/src/      - required"
-	echo "\$work_dir/src/xml/"
-	echo "\$work_dir/src/twl/"
-	echo "\$work_dir/src/cfg/"
-	echo "\$work_dir/src/cwl/"
+	echo "\$SRCDIR/      - required (src or your src_dir specified with -s)"
+	echo "\$SRCDIR/xml/"
+	echo "\$SRCDIR/twl/"
+	echo "\$SRCDIR/config/"
+	echo "\$SRCDIR/script/"
+	echo "\$SRCDIR/cfg/"
+	echo "\$SRCDIR/cwl/"
 	echo
 	echo "Example:"
 	echo "        $_cmd"
-	echo "            will generate NewSOAP.tar and OldSOAP.tar"
+	echo "            generates NewSOAP.tar and OldSOAP.tar"
 	echo "        $_cmd -f75979 -i28G -v new"
-	echo "            will generate 75979_NewSOAP_28G.tar"
+	echo "            generates 75979_NewSOAP_28G.tar"
+	echo "        $_cmd -f75979 -i28G -v new -k"
+	echo "            generates dir 75979_NewSOAP_28G instead of tar package"
+	echo "        $_cmd -f 76804 -i RTR -s 76804_RTR_src"
+	echo "            generates 76804_NewSOAP_RTR.tar and 76804_OldSOAP_RTR.tar"
 }
 
 # Default configurations
-wd=$PWD
+SRCDIR=src
 Build_For_New_SOAP=Y
 Build_For_Old_SOAP=Y
 mf=/shome/sms/rangt/bin/Makefile_for_eSM_Task
 typeset -l ver=new
 
 # Get options
-while getopts "hf:i:v:d:k" opt
+while getopts "hf:i:v:s:k" opt
 do
 	case $opt in
 	h)
@@ -72,8 +79,8 @@ do
 			usage; exit 2
 		fi
 		;;
-	d)
-		wd=$OPTARG
+	s)
+		SRCDIR=$OPTARG
 		;;
 	k)
 		NoTar=y
@@ -86,14 +93,19 @@ done
 
 #shift $((OPTIND-1))
 
-if [ ! -d $wd ] || [ ! -d $wd/src ] ; then
-	echo "$_cmd: invalid working dir: $wd"
+if [ ! $SRCDIR ] || [ ! -d $SRCDIR ] ; then
+	echo "$_cmd: invalid src dir: $SRCDIR"
 	usage; exit 3
 fi
 
+wd=${SRCDIR%/*}
+if [ $wd = $SRCDIR ] ; then
+	wd=$PWD
+fi
+SRCDIR=${SRCDIR##*/}
 echo work_dir=$wd
+echo src_dir=$SRCDIR
 echo feature=$feat
-echo SOAP_version is: $ver
 echo Makefile=$mf
 
 warn_before_overwrite() {
@@ -138,7 +150,6 @@ build_package() {
 #set -x
 old_wd=$PWD
 cd $wd
-SRCDIR=${SRCDIR:-src}
 
 # Build for new SOAP
 if [ $Build_For_New_SOAP = "Y" ] ; then
