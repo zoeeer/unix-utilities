@@ -11,7 +11,7 @@
 #######################################################################
 usage() {
 	echo "Usage:"
-	echo "   or   ${0##*/} -a ip_addr -f tar_file [-v soap_ver]"
+	echo "   ${0##*/} -a ip_addr -f tar_file [-v soap_ver]"
 	echo "Apply task mapping files, twl classes, cfg files to the destination
 eSM server. These files will be put under the 'Current' path accordingly."
 	echo
@@ -80,9 +80,11 @@ passwd=nsms123
 ssh_exec() {
 	expect <<ENDOFHERE
 spawn $*
-expect "*password*"
-send "$passwd\n"
-expect eof
+expect {
+	"(yes/no)"		{send "yes\n"; exp_continue}
+	-nocase "password"	{send "$passwd\n"; exp_continue}
+	eof
+}
 ENDOFHERE
 }
 
